@@ -83,8 +83,8 @@ jobs:
           GOOGLE_CLIENT_SECRET_JSON: ${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}
           YOUTUBE_REFRESH_TOKEN_DRPANGPSYCH: ${{ secrets.YOUTUBE_REFRESH_TOKEN_DRPANGPSYCH }}
         run: |
-          cd scripts
-          python pipeline.py ${{ env.CHANNEL_ID }} \
+          python pipeline_runner.py \
+            --channel drpangpsych \
             --type "${{ github.event.inputs.content_type || 'script' }}" \
             --privacy "${{ github.event.inputs.privacy_status || 'private' }}" \
             ${{ github.event.inputs.custom_topic && format('--topic "{0}"', github.event.inputs.custom_topic) || '' }} \
