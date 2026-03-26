@@ -1,0 +1,127 @@
+# ============================================================
+# 닥스삼부자 (@mydachshundtrio) - YouTube 자동화 워크플로우
+# 스케줄: 화요일, 목요일, 토요일 오전 9시 (KST)
+# ============================================================
+
+name: "닥스삼부자 - 콘텐츠 자동 업로드"
+
+on:
+  # 정기 스케줄 (UTC 기준 → KST 오전 9시 = UTC 0시)
+  schedule:
+    - cron: "0 0 * * 2,4,6"  # 화(2), 목(4), 토(6) UTC 00:00 = KST 09:00
+
+  # 수동 실행 지원
+  workflow_dispatch:
+    inputs:
+      content_type:
+        description: "콘텐츠 유형"
+        required: false
+        default: "script"
+        type: choice
+        options:
+          - script
+          - shorts
+      custom_topic:
+        description: "사용자 지정 주제 (비워두면 자동 선택)"
+        required: false
+        default: ""
+        type: string
+      privacy_status:
+        description: "공개 상태"
+        required: false
+        default: "private"
+        type: choice
+        options:
+          - private
+          - unlisted
+          - public
+      skip_upload:
+        description: "업로드 건너뛰기 (테스트용)"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  CHANNEL_ID: mydachshundtrio
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  generate-and-upload:
+    name: "콘텐츠 생성 및 업로드"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── 체크아웃 ──
+      - name: "저장소 체크아웃"
+        uses: actions/checkout@v4
+
+      # ── Python 설정 ──
+      - name: "Python ${{ env.PYTHON_VERSION }} 설정"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      # ── 의존성 설치 ──
+      - name: "의존성 설치"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── ffmpeg 설치 (영상 생성용) ──
+      - name: "ffmpeg 설치"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      # ── 파이프라인 실행 ──
+      - name: "자동화 파이프라인 실행"
+        id: pipeline
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_CLIENT_SECRET_JSON: ${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}
+          YOUTUBE_REFRESH_TOKEN_MYDACHSHUNDTRIO: ${{ secrets.YOUTUBE_REFRESH_TOKEN_MYDACHSHUNDTRIO }}
+        run: |
+          cd scripts
+          python pipeline.py ${{ env.CHANNEL_ID }} \
+            --type "${{ github.event.inputs.content_type || 'script' }}" \
+            --privacy "${{ github.event.inputs.privacy_status || 'private' }}" \
+            ${{ github.event.inputs.custom_topic && format('--topic "{0}"', github.event.inputs.custom_topic) || '' }} \
+            ${{ github.event.inputs.skip_upload == 'true' && '--skip-upload' || '' }}
+
+      # ── 결과 아티팩트 저장 ──
+      - name: "생성 결과물 아티팩트 저장"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "mydachshundtrio-output-${{ github.run_number }}"
+          path: assets/output/mydachshundtrio/
+          retention-days: 30
+
+      # ── 실행 결과 요약 ──
+      - name: "실행 결과 요약"
+        if: always()
+        run: |
+          echo "## 닥스삼부자 파이프라인 결과" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **상태**: ${{ steps.pipeline.outputs.pipeline_status || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **제목**: ${{ steps.pipeline.outputs.video_title || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Video ID**: ${{ steps.pipeline.outputs.video_id || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ steps.pipeline.outputs.video_url || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **실행 시간**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+  # ── 실패 알림 (선택) ──
+  notify-on-failure:
+    name: "실패 알림"
+    runs-on: ubuntu-latest
+    needs: generate-and-upload
+    if: failure()
+
+    steps:
+      - name: "실패 알림 출력"
+        run: |
+          echo "::error::닥스삼부자 파이프라인이 실패했습니다. 로그를 확인하세요."
+          echo "## :x: 파이프라인 실패" >> $GITHUB_STEP_SUMMARY
+          echo "닥스삼부자 채널의 자동 업로드 파이프라인이 실패했습니다." >> $GITHUB_STEP_SUMMARY
+          echo "Actions 로그를 확인하고 필요한 조치를 취해주세요." >> $GITHUB_STEP_SUMMARY
