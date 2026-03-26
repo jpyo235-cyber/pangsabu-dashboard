@@ -10,3 +10,8 @@ thumbnails/
 *.wav
 pangsabu_original.jpg
 .env
+
+# 보안 파일 - 절대 GitHub에 올리면 안 됨
+credentials.json
+token.pickle
+*.bak

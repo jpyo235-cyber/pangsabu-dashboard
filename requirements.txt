@@ -7,3 +7,9 @@ gtts==2.5.1
 pydub==0.25.1
 rembg==2.0.50
 numpy==1.26.4
+google-auth==2.28.2
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.118.0
+python-dotenv==1.0.1
+schedule==1.2.2
