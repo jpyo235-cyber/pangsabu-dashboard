@@ -290,11 +290,21 @@ def generate_thumbnail(
     # ── 4. 저장 ──────────────────────────────────────────
     if output_path is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = os.path.join(os.getcwd(), "output", f"thumb_{channel}_{timestamp}.png")
+        output_path = os.path.join(os.getcwd(), "output", f"thumb_{channel}_{timestamp}.jpg")
+    else:
+        # .png 확장자를 .jpg로 변경 (YouTube 2MB 제한 대응)
+        output_path = os.path.splitext(output_path)[0] + ".jpg"
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    canvas.convert("RGB").save(output_path, "PNG", quality=95)
-    print(f"썸네일 저장: {output_path}")
+    rgb_img = canvas.convert("RGB")
+    # YouTube 썸네일 2MB(2,000,000 bytes) 제한 대응: JPEG 압축
+    quality = 92
+    rgb_img.save(output_path, "JPEG", quality=quality, optimize=True)
+    # 크기 초과 시 품질 낮춰서 재저장
+    while os.path.getsize(output_path) > 2_000_000 and quality > 50:
+        quality -= 8
+        rgb_img.save(output_path, "JPEG", quality=quality, optimize=True)
+    print(f"썸네일 저장: {output_path} ({os.path.getsize(output_path)//1024}KB, quality={quality})")
     return output_path
 
 
