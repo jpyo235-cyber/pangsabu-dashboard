@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+audio/
+videos/
+frames/
+thumbnails/
+*.mp3
+*.mp4
+*.wav
+pangsabu_original.jpg
+.env
