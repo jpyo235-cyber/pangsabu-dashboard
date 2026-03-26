@@ -14,8 +14,8 @@ import numpy as np
 from voice_generator import generate_pangsabu_voice, get_audio_duration
 from thumbnail_generator import get_theme, get_font, THUMB_W, THUMB_H, PANGSABU_PATH, PANGSABU_ORIG, BG_DIR
 
-OUTPUT_DIR = "/home/ubuntu/pangsabu/videos"
-FRAME_DIR  = "/home/ubuntu/pangsabu/frames"
+OUTPUT_DIR = os.path.join(os.getcwd(), "output", "videos")
+FRAME_DIR  = os.path.join(os.getcwd(), "output", "frames")
 
 
 def split_script_to_segments(script: str, lang: str = "ko") -> list:

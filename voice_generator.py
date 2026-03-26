@@ -9,7 +9,7 @@ from gtts import gTTS
 from datetime import datetime
 
 
-OUTPUT_DIR = "/home/ubuntu/pangsabu/audio"
+OUTPUT_DIR = os.path.join(os.getcwd(), "output", "audio")
 
 
 def text_to_speech(text: str, lang: str = "ko", output_path: str = None) -> str:

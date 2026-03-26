@@ -11,12 +11,13 @@ from datetime import datetime
 THUMB_W = 1080
 THUMB_H = 1920
 
-# 팡사부 이미지 경로
-PANGSABU_PATH = "/home/ubuntu/pangsabu/pangsabu_cropped.png"
-PANGSABU_ORIG  = "/home/ubuntu/pangsabu/pangsabu.png"
+# 팡사부 이미지 경로 (저장소 기준 상대경로)
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PANGSABU_PATH = os.path.join(_BASE_DIR, "pangsabu_cropped.png")
+PANGSABU_ORIG  = os.path.join(_BASE_DIR, "pangsabu.png")
 
 # 배경 테마
-BG_DIR = "/home/ubuntu/pangsabu/backgrounds"
+BG_DIR = os.path.join(_BASE_DIR, "backgrounds")
 THEMES = {
     "war":      {"bg_file": f"{BG_DIR}/bg_war.png",      "bg": [(8, 2, 2), (90, 12, 12)],    "accent": (220, 80, 30),   "text": "#FFFFFF",  "sub": "#FFD700"},
     "economy":  {"bg_file": f"{BG_DIR}/bg_economy.png",  "bg": [(2, 10, 2), (8, 55, 18)],    "accent": (50, 200, 80),   "text": "#FFD700",  "sub": "#FFFFFF"},
@@ -289,7 +290,7 @@ def generate_thumbnail(
     # ── 4. 저장 ──────────────────────────────────────────
     if output_path is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = f"/home/ubuntu/pangsabu/thumbnails/thumb_{channel}_{timestamp}.png"
+        output_path = os.path.join(os.getcwd(), "output", f"thumb_{channel}_{timestamp}.png")
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     canvas.convert("RGB").save(output_path, "PNG", quality=95)

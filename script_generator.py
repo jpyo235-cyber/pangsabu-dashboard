@@ -3,7 +3,8 @@
 뉴스 소재를 받아 팡사부 캐릭터 스타일의 쇼츠 스크립트 생성
 """
 import os
-from openai import OpenAI
+import time
+from openai import OpenAI, RateLimitError
 
 client = OpenAI()
 
@@ -64,17 +65,29 @@ def generate_script(title: str, summary: str, language: str = "both") -> dict:
 (쉼표로 구분된 10개 태그)
 """
 
+    # 429 Too Many Requests 대비 재시도 로직
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4.1-mini",
+                messages=[
+                    {"role": "system", "content": PANGSABU_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.8,
+                max_tokens=1500
+            )
+            break  # 성공 시 루프 탈출
+        except RateLimitError as e:
+            if attempt < max_retries - 1:
+                wait_sec = 10 * (attempt + 1)  # 10, 20, 30, 40초 대기
+                print(f"[script_generator] 429 Rate Limit, {wait_sec}초 후 재시도 ({attempt+1}/{max_retries})...")
+                time.sleep(wait_sec)
+            else:
+                raise
+    
     try:
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {"role": "system", "content": PANGSABU_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.8,
-            max_tokens=1500
-        )
-        
         content = response.choices[0].message.content
         
         # 결과 파싱
@@ -105,10 +118,14 @@ def generate_script(title: str, summary: str, language: str = "both") -> dict:
                 tags_text = section.split("]", 1)[-1].strip()
                 result["tags"] = [t.strip() for t in tags_text.split(",") if t.strip()]
         
+        # 스크립트가 비어있으면 예외 발생
+        if not result.get("korean") and not result.get("english"):
+            raise ValueError(f"스크립트 파싱 실패. 원본 응답: {content[:200]}")
+        
         return result
         
     except Exception as e:
-        return {"error": str(e), "raw": ""}
+        raise RuntimeError(f"스크립트 생성 실패: {e}")
 
 
 if __name__ == "__main__":
