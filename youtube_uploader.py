@@ -36,10 +36,12 @@ _oauth_state = {
 
 def _ensure_credentials_file():
     """
-    환경변수 GOOGLE_CREDENTIALS_JSON 이 있으면 credentials.json 파일 생성
-    Railway 배포 환경에서 사용
+    환경변수에서 credentials.json 및 token.pickle 복원
+    GitHub Actions / Railway 배포 환경 대응
+    GOOGLE_CLIENT_SECRET_JSON 또는 GOOGLE_CREDENTIALS_JSON 지원
     """
-    env_creds = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+    # credentials.json 복원 (GOOGLE_CLIENT_SECRET_JSON 우선, 없으면 GOOGLE_CREDENTIALS_JSON)
+    env_creds = os.environ.get('GOOGLE_CLIENT_SECRET_JSON') or os.environ.get('GOOGLE_CREDENTIALS_JSON')
     if env_creds and not os.path.exists(CREDENTIALS_FILE):
         try:
             # Base64 인코딩된 경우 디코딩
@@ -54,7 +56,7 @@ def _ensure_credentials_file():
         except Exception as e:
             print(f"credentials.json 생성 실패: {e}")
 
-    # token.pickle도 환경변수에서 복원
+    # token.pickle 복원 (YOUTUBE_TOKEN_PICKLE 우선)
     env_token = os.environ.get('YOUTUBE_TOKEN_PICKLE')
     if env_token and not os.path.exists(TOKEN_FILE):
         try:
@@ -64,6 +66,38 @@ def _ensure_credentials_file():
             print("환경변수에서 token.pickle 복원 완료")
         except Exception as e:
             print(f"token.pickle 복원 실패: {e}")
+
+    # YOUTUBE_REFRESH_TOKEN_* 환경변수로 token.pickle 직접 생성
+    # (YOUTUBE_TOKEN_PICKLE이 없을 때 사용)
+    if not os.path.exists(TOKEN_FILE) and os.path.exists(CREDENTIALS_FILE):
+        channel_env = os.environ.get('CHANNEL_ID', '').upper().replace('-', '_')
+        refresh_token = (
+            os.environ.get(f'YOUTUBE_REFRESH_TOKEN_{channel_env}') or
+            os.environ.get('YOUTUBE_REFRESH_TOKEN')
+        )
+        if refresh_token:
+            try:
+                from google.oauth2.credentials import Credentials as OAuthCreds
+                with open(CREDENTIALS_FILE, 'r') as f:
+                    client_data = json.load(f)
+                client_info = client_data.get('installed') or client_data.get('web', {})
+                client_id = client_info.get('client_id', '')
+                client_secret = client_info.get('client_secret', '')
+                token_uri = client_info.get('token_uri', 'https://oauth2.googleapis.com/token')
+                creds = OAuthCreds(
+                    token=None,
+                    refresh_token=refresh_token,
+                    token_uri=token_uri,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    scopes=SCOPES
+                )
+                creds.refresh(Request())
+                with open(TOKEN_FILE, 'wb') as f:
+                    pickle.dump(creds, f)
+                print(f"YOUTUBE_REFRESH_TOKEN_{channel_env}으로 token.pickle 생성 완료")
+            except Exception as e:
+                print(f"refresh token으로 token.pickle 생성 실패: {e}")
 
 
 def get_token_as_base64() -> str:
